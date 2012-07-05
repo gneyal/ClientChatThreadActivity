@@ -38,8 +38,6 @@ public class ClientChatThreadActivity extends Activity {
 	public PrintWriter printWriter;
 	private boolean printWriterAlive = false;
 	
-	public InputThread input;
-	
 	public ListView listView1;
 	public String[] stringsForList;
 	private ArrayAdapter<String> arrayAdapter;
@@ -49,39 +47,39 @@ public class ClientChatThreadActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // setting the layout to be ./res/layout/main.xml
         setContentView(R.layout.main);
         
+        // findViewById returns the ListView declared with the id == mylist
         listView1 = (ListView) findViewById(R.id.mylist);
+        
+        // instantiating the list items
         stringsForList = new String[10];
         for (int i =0; i<10; i++)
-        	stringsForList[i] = "hi";
+        	stringsForList[i] = "";
         
         counter = 0;
+        
+        // constructing the ArrayAdapter
         arrayAdapter = new ArrayAdapter<String>(this, R.layout.row, R.id.textView1, stringsForList);
 
         // By using setAdapter method, you plugged the ListView with adapter
         listView1.setAdapter(arrayAdapter);
-
-        // Normally the argument of setAdapter ask for a ListAdapter instance.
-        //And that is the best way of implementation of this code
-        //We call it "programming to the interface"
     }
     
     public void onStart() {
     	super.onStart();
     	
     	setSocket();
-        setPrintWriter();
+    	// setting output
+        setOutput();
+        // setting input
         setInput();
-        
+        // start the other thread
         listenToIncomingMessages();
-
     }
     
-    public void listenToIncomingMessages() {
-    	inAsync = new InputAsync();
-    	inAsync.execute();
-    }
     public void setSocket() {
     	try {
 			Log.d(TAG, "Getting the socket ready");
@@ -99,6 +97,35 @@ public class ClientChatThreadActivity extends Activity {
 			setSocketAlive(false);
 		}
     }
+    
+    public void setOutput() {
+		if (isSocketAlive()) {
+			try {
+				printWriter = new PrintWriter(socket.getOutputStream(), true);
+				printWriterAlive = true;
+			} catch (Exception e) {
+				// TODO: handle exception
+				e.printStackTrace();
+				printWriterAlive = false;
+			}
+		}
+	}
+	
+    public void setInput() {
+//		input = new Input(this, socket, printWriter);
+		try {
+			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+		} catch (Exception e) {
+			System.err.println("Don't know about host: taranis.");
+			System.exit(1);
+		}
+	}
+    
+    public void listenToIncomingMessages() {
+    	inAsync = new InputAsync();
+    	inAsync.execute();
+    }
+    
     public boolean isSocketAlive() {
 		return socketAlive;
 	}
@@ -114,25 +141,10 @@ public class ClientChatThreadActivity extends Activity {
 		this.printWriterAlive = printWriterAlive;
 	}
 	
-	public void setPrintWriter() {
-		if (isSocketAlive()) {
-			try {
-				printWriter = new PrintWriter(socket.getOutputStream(), true);
-				printWriterAlive = true;
-			} catch (Exception e) {
-				// TODO: handle exception
-				e.printStackTrace();
-				printWriterAlive = false;
-			}
-		}
-	}
 	public void printToScreen(String msg) {
-		Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG);
+		Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG).show();
 	}
 	
-	public void setInput() {
-		input = new InputThread(this, socket, printWriter);
-	}
 	public void onClick(View view) {
 		// 1. get message from the EditText
 		EditText editText = (EditText) findViewById(R.id.editText1);
@@ -165,6 +177,8 @@ public class ClientChatThreadActivity extends Activity {
 			return true;
 		}
 		
+		// this function can be called from the doInBackground function in order to 
+		// update the user for some progress being made.
 		@Override
         protected void onProgressUpdate(String... str) {
             if (str.length > 0) {
@@ -178,21 +192,4 @@ public class ClientChatThreadActivity extends Activity {
 		
 		
 	}
-	public class InputThread {
-		
-		public InputThread(ClientChatThreadActivity c, Socket socket, PrintWriter o) {
-			try {
-				in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-				out = o;
-				context = c;
-			} catch (Exception e) {
-				System.err.println("Don't know about host: taranis.");
-				System.exit(1);
-			}
-
-		}
-
-	}
-
-	
 }
